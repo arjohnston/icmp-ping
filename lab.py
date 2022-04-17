@@ -9,18 +9,20 @@ import binascii
 ICMP_ECHO_REQUEST = 8
 
 def checksum(string):
+    # In this function we make the checksum of our packet
+    string = bytearray(string)
     csum = 0
     countTo = (len(string) // 2) * 2
     count = 0
 
     while count < countTo:
-        thisVal = ord(string[count+1]) * 256 + ord(string[count])
+        thisVal = string[count+1] * 256 + string[count]
         csum = csum + thisVal
         csum = csum & 0xffffffff
         count = count + 2
 
     if countTo < len(string):
-        csum = csum + ord(string[len(string) - 1])
+        csum = csum + string[-1]
         csum = csum & 0xffffffff
 
     csum = (csum >> 16) + (csum & 0xffff)
@@ -48,13 +50,14 @@ def receiveOnePing(mySocket, ID, timeout, destAddr):
         #Fetch the ICMP header from the IP packet
         icmpHeader = recPacket[20:28]
         icmpType, code, mychecksum, packetID, sequence = struct.unpack("bbHHh", icmpHeader)
-    
+
         if type != 8 and packetID == ID:
             bytesInDouble = struct.calcsize("d")
             timeSent = struct.unpack("d", recPacket[28:28 + bytesInDouble])[0]
             return timeReceived - timeSent
 
         #Fill in end
+
         timeLeft = timeLeft - howLongInSelect
         if timeLeft <= 0:
             return "Request timed out."
@@ -69,7 +72,7 @@ def sendOnePing(mySocket, destAddr, ID):
     data = struct.pack("d", time.time())
 
     # Calculate the checksum on the data and the dummy header.
-    myChecksum = checksum(str(header + data))
+    myChecksum = checksum(header + data)
 
     # Get the right checksum, and put in the header
     if sys.platform == 'darwin':
@@ -89,9 +92,10 @@ def doOnePing(destAddr, timeout):
     icmp = getprotobyname("icmp")
     # SOCK_RAW is a powerful socket type. For more details: http://sockraw.org/papers/sock_raw
 
-    mySocket = socket(AF_INET, SOCK_RAW, icmp)
+    # using SOCK_DGRAM here as RAW was erroneous
+    mySocket = socket(AF_INET, SOCK_DGRAM, icmp)
 
-    myID = os.getpid() & 0xFFFF # Return the current process i
+    myID = os.getpid() & 0xFFFF  #Return the current process i
     sendOnePing(mySocket, destAddr, myID)
     delay = receiveOnePing(mySocket, myID, timeout, destAddr)
 
@@ -108,8 +112,8 @@ def ping(host, timeout=1):
     # Send ping requests to a server separated by approximately one second
     while 1 :
         delay = doOnePing(dest, timeout)
-        print(delay)
+        print (delay)
         time.sleep(1)# one second
     return delay
 
-ping("google.com")
+ping(sys.argv[1])
